@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Management System - Real-time Sync</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: linear-gradient(135deg,#667eea,#764ba2);
+  min-height:100vh;
+  padding:20px;
+  font-family:'Segoe UI',Arial;
+}
+.container{max-width:1400px;margin:auto;}
+.header{
+  background:#fff;
+  padding:20px;
+  border-radius:20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:15px;
+  margin-bottom:20px;
+  box-shadow:0 5px 20px rgba(0,0,0,0.1);
+}
+.header h2{color:#333;}
+.stats{display:flex;gap:15px;}
+.stat-card{
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  color:#fff;
+  padding:12px 25px;
+  border-radius:15px;
+  text-align:center;
+}
+.stat-card .label{font-size:12px;opacity:0.9;}
+.stat-card .value{font-size:24px;font-weight:bold;}
+.employee-selector{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:#f0f0f0;
+  padding:8px 20px;
+  border-radius:50px;
+}
+.employee-selector select{
+  padding:8px 15px;
+  border-radius:25px;
+  border:1px solid #ddd;
+  font-size:16px;
+  cursor:pointer;
+}
+.current-badge{
+  background:#4CAF50;
+  color:white;
+  padding:6px 18px;
+  border-radius:25px;
+  font-weight:bold;
+}
+.reset-btn{
+  background:#f44336;
+  color:white;
+  border:none;
+  padding:10px 25px;
+  border-radius:25px;
+  cursor:pointer;
+  font-weight:bold;
+}
+.password-reset{
+  background:#ff9800;
+  color:white;
+  border:none;
+  padding:10px 25px;
+  border-radius:25px;
+  cursor:pointer;
+  font-weight:bold;
+  margin-left:10px;
+}
+.employees-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:20px;
+}
+.employee-card{
+  background:#fff;
+  padding:20px;
+  border-radius:20px;
+  box-shadow:0 5px 15px rgba(0,0,0,0.1);
+  transition:all 0.3s;
+}
+.employee-card.active{
+  border:3px solid #4CAF50;
+  transform:scale(1.02);
+  box-shadow:0 10px 25px rgba(76,175,80,0.3);
+}
+.employee-name{
+  font-size:24px;
+  font-weight:bold;
+  text-align:center;
+  margin-bottom:20px;
+  padding-bottom:10px;
+  border-bottom:2px solid #eee;
+}
+.numbers{
+  display:flex;
+  gap:15px;
+  margin-bottom:20px;
+}
+.number-box{
+  flex:1;
+  text-align:center;
+  padding:15px;
+  border-radius:15px;
+  background:#f8f9fa;
+}
+.number-box.previous{background:#e3f2fd;}
+.number-box.current{background:#fff3e0;border:2px solid #ff9800;}
+.number-box.next{background:#e8f5e9;}
+.number-box .label{font-size:12px;color:#666;margin-bottom:5px;}
+.number-box .number{font-size:28px;font-weight:bold;color:#333;}
+.call-button{
+  width:100%;
+  padding:15px;
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  color:#fff;
+  border:none;
+  border-radius:15px;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
+  transition:transform 0.2s;
+}
+.call-button:hover:not(:disabled){
+  transform:translateY(-2px);
+}
+.call-button:disabled{
+  opacity:0.5;
+  cursor:not-allowed;
+}
+.connection-status{
+  text-align:center;
+  margin-top:20px;
+  padding:10px;
+  color:white;
+  font-size:14px;
+}
+.loading{
+  text-align:center;
+  padding:50px;
+  color:white;
+  font-size:20px;
+}
+.password-dialog{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.8);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  z-index:1000;
+}
+.password-box{
+  background:white;
+  padding:30px;
+  border-radius:20px;
+  text-align:center;
+}
+.password-box input{
+  padding:10px;
+  margin:10px;
+  border-radius:10px;
+  border:1px solid #ddd;
+  font-size:16px;
+}
+.password-box button{
+  padding:10px 20px;
+  margin:5px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+}
+@media(max-width:768px){
+  .header{flex-direction:column;}
+  .numbers{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<div class="header">
+  <h2>🏪 Customer Management System</h2>
+  
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">✅ Total Served</div>
+      <div class="value" id="totalServed">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">🔢 Next Number</div>
+      <div class="value" id="nextNumber">1</div>
+    </div>
+  </div>
+  
+  <div class="employee-selector">
+    <span>👤 I am:</span>
+    <select id="employeeSelect">
+      <option value="0">Ahmed</option>
+      <option value="1">Sara</option>
+      <option value="2">Yousef</option>
+      <option value="3">Laila</option>
+      <option value="4">Kareem</option>
+      <option value="5">Noor</option>
+      <option value="6">Majed</option>
+    </select>
+    <div class="current-badge" id="currentBadge">Ahmed</div>
+  </div>
+  
+  <button class="reset-btn" id="resetBtn">🔄 Reset All</button>
+  <button class="password-reset" id="passwordResetBtn">🔐 Admin Reset</button>
+</div>
+
+<div id="employeesGrid" class="employees-grid">
+  <div class="loading">⏳ Loading data...</div>
+</div>
+
+<div class="connection-status">
+  <span id="connectionStatus">🟢 Connected | Real-time sync between all devices</span>
+</div>
+
+</div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCAS-Oh8nFhvYY6GgGRpN5h1frVtvcOaVI",
+  authDomain: "finaltest-5a444.firebaseapp.com",
+  projectId: "finaltest-5a444",
+  storageBucket: "finaltest-5a444.firebasestorage.app",
+  messagingSenderId: "566535158113",
+  appId: "1:566535158113:web:9b1af046a8f18c271a6d20"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Employee names in English
+const EMPLOYEE_NAMES = ["Ahmed", "Sara", "Yousef", "Laila", "Kareem", "Noor", "Majed"];
+const MAX_NUMBER = Infinity; // Unlimited customers!
+
+let currentEmployeeId = parseInt(localStorage.getItem('selectedEmployee')) || 0;
+let isUpdating = false;
+
+let systemData = {
+  nextNumber: 1,
+  totalServed: 0,
+  currentCustomer: Array(7).fill(null),
+  lastCustomer: Array(7).fill(null)
+};
+
+// Admin password
+const ADMIN_PASSWORD = "20212004";
+
+// Show password dialog
+function showPasswordDialog(callback) {
+  const dialog = document.createElement('div');
+  dialog.className = 'password-dialog';
+  dialog.innerHTML = `
+    <div class="password-box">
+      <h3>🔐 Admin Reset</h3>
+      <p>Enter password to reset all data</p>
+      <input type="password" id="adminPassword" placeholder="Enter password">
+      <br>
+      <button id="confirmBtn">Confirm</button>
+      <button id="cancelBtn">Cancel</button>
+    </div>
+  `;
+  document.body.appendChild(dialog);
+  
+  document.getElementById('confirmBtn').onclick = () => {
+    const password = document.getElementById('adminPassword').value;
+    dialog.remove();
+    callback(password === ADMIN_PASSWORD);
+  };
+  
+  document.getElementById('cancelBtn').onclick = () => {
+    dialog.remove();
+    callback(false);
+  };
+}
+
+// Save to Firebase
+async function saveToFirebase() {
+  if (isUpdating) return;
+  try {
+    const docRef = doc(db, "system", "state");
+    await setDoc(docRef, systemData);
+    console.log("✅ Data saved:", systemData);
+  } catch (error) {
+    console.error("❌ Save error:", error);
+  }
+}
+
+// Load from Firebase
+async function loadFromFirebase() {
+  try {
+    const docRef = doc(db, "system", "state");
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      systemData = docSnap.data();
+      console.log("📥 Data loaded:", systemData);
+    } else {
+      systemData = {
+        nextNumber: 1,
+        totalServed: 0,
+        currentCustomer: Array(7).fill(null),
+        lastCustomer: Array(7).fill(null)
+      };
+      await saveToFirebase();
+      console.log("🆕 New data created");
+    }
+    render();
+  } catch (error) {
+    console.error("❌ Load error:", error);
+  }
+}
+
+// Request new customer
+window.requestCustomer = async function(empId) {
+  if (empId !== currentEmployeeId) {
+    alert(`⚠️ You are ${EMPLOYEE_NAMES[currentEmployeeId]}, you can only request for yourself!`);
+    return;
+  }
+  
+  // Update data (no max limit!)
+  const newData = {
+    ...systemData,
+    lastCustomer: [...systemData.lastCustomer],
+    currentCustomer: [...systemData.currentCustomer]
+  };
+  
+  newData.lastCustomer[empId] = newData.currentCustomer[empId];
+  newData.currentCustomer[empId] = newData.nextNumber;
+  newData.nextNumber++;
+  newData.totalServed++;
+  
+  systemData = newData;
+  
+  await saveToFirebase();
+  
+  const card = document.getElementById(`card_${empId}`);
+  if (card) {
+    card.style.transform = "scale(0.98)";
+    setTimeout(() => { if(card) card.style.transform = ""; }, 200);
+  }
+};
+
+// Regular reset (warning only)
+document.getElementById("resetBtn").addEventListener("click", async () => {
+  alert("⚠️ Use Admin Reset button to reset the system!");
+});
+
+// Admin reset with password
+document.getElementById("passwordResetBtn").addEventListener("click", () => {
+  showPasswordDialog(async (isAuthorized) => {
+    if (isAuthorized) {
+      if (confirm("⚠️ WARNING: This will delete ALL data from ALL devices! Are you sure?")) {
+        systemData = {
+          nextNumber: 1,
+          totalServed: 0,
+          currentCustomer: Array(7).fill(null),
+          lastCustomer: Array(7).fill(null)
+        };
+        await saveToFirebase();
+        alert("✅ System has been reset successfully!");
+      }
+    } else {
+      alert("❌ Wrong password! Access denied.");
+    }
+  });
+});
+
+// Render UI
+function render() {
+  document.getElementById("totalServed").innerText = systemData.totalServed;
+  document.getElementById("nextNumber").innerText = systemData.nextNumber;
+  
+  let html = "";
+  
+  for (let i = 0; i < EMPLOYEE_NAMES.length; i++) {
+    const current = systemData.currentCustomer[i];
+    const last = systemData.lastCustomer[i];
+    
+    let prevDisplay = "-";
+    if (last && last >= 1) prevDisplay = last;
+    else if (current && current > 1) prevDisplay = current - 1;
+    
+    let nextDisplay = "-";
+    if (current) nextDisplay = current + 1;
+    else nextDisplay = systemData.nextNumber;
+    
+    const canCall = true; // Always can call since no limit
+    
+    html += `
+      <div class="employee-card ${i === currentEmployeeId ? 'active' : ''}" id="card_${i}">
+        <div class="employee-name">🧑‍💼 ${EMPLOYEE_NAMES[i]}</div>
+        <div class="numbers">
+          <div class="number-box previous">
+            <div class="label">📋 Previous</div>
+            <div class="number">${prevDisplay}</div>
+          </div>
+          <div class="number-box current">
+            <div class="label">🟡 Current</div>
+            <div class="number">${current || "⚡"}</div>
+          </div>
+          <div class="number-box next">
+            <div class="label">🔜 Next</div>
+            <div class="number">${nextDisplay}</div>
+          </div>
+        </div>
+        <button class="call-button" onclick="requestCustomer(${i})">
+          📢 Call Next Customer
+        </button>
+      </div>
+    `;
+  }
+  
+  document.getElementById("employeesGrid").innerHTML = html;
+}
+
+// Listen to Firebase updates
+onSnapshot(doc(db, "system", "state"), (snap) => {
+  if (snap.exists() && !isUpdating) {
+    const newData = snap.data();
+    if (JSON.stringify(newData) !== JSON.stringify(systemData)) {
+      systemData = newData;
+      render();
+      console.log("🔄 Data updated from another device");
+    }
+  }
+});
+
+// Switch employee
+document.getElementById("employeeSelect").addEventListener("change", (e) => {
+  currentEmployeeId = parseInt(e.target.value);
+  localStorage.setItem('selectedEmployee', currentEmployeeId);
+  document.getElementById("currentBadge").innerText = EMPLOYEE_NAMES[currentEmployeeId];
+  render();
+});
+
+// Start
+document.getElementById("employeeSelect").value = currentEmployeeId;
+document.getElementById("currentBadge").innerText = EMPLOYEE_NAMES[currentEmployeeId];
+
+await loadFromFirebase();
+
+console.log("✅ System ready for real-time sync!");
+</script>
+
+</body>
+</html>
