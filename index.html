@@ -243,8 +243,7 @@ import {
   doc,
   getDoc,
   setDoc,
-  onSnapshot,
-  updateDoc
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // Firebase configuration
@@ -263,10 +262,9 @@ const db = getFirestore(app);
 
 // Employee names in English
 const EMPLOYEE_NAMES = ["Ahmed", "Sara", "Yousef", "Laila", "Kareem", "Noor", "Majed"];
-const MAX_NUMBER = Infinity; // Unlimited customers!
+// No maximum limit - infinite customers!
 
 let currentEmployeeId = parseInt(localStorage.getItem('selectedEmployee')) || 0;
-let isUpdating = false;
 
 let systemData = {
   nextNumber: 1,
@@ -308,7 +306,6 @@ function showPasswordDialog(callback) {
 
 // Save to Firebase
 async function saveToFirebase() {
-  if (isUpdating) return;
   try {
     const docRef = doc(db, "system", "state");
     await setDoc(docRef, systemData);
@@ -343,35 +340,42 @@ async function loadFromFirebase() {
   }
 }
 
-// Request new customer
-window.requestCustomer = async function(empId) {
+// Request new customer - FIXED!
+async function requestCustomer(empId) {
+  console.log("🔔 requestCustomer called for employee:", empId);
+  console.log("Current employee ID:", currentEmployeeId);
+  
   if (empId !== currentEmployeeId) {
     alert(`⚠️ You are ${EMPLOYEE_NAMES[currentEmployeeId]}, you can only request for yourself!`);
     return;
   }
   
-  // Update data (no max limit!)
+  // Update data
   const newData = {
-    ...systemData,
-    lastCustomer: [...systemData.lastCustomer],
-    currentCustomer: [...systemData.currentCustomer]
+    nextNumber: systemData.nextNumber + 1,
+    totalServed: systemData.totalServed + 1,
+    currentCustomer: [...systemData.currentCustomer],
+    lastCustomer: [...systemData.lastCustomer]
   };
   
   newData.lastCustomer[empId] = newData.currentCustomer[empId];
-  newData.currentCustomer[empId] = newData.nextNumber;
-  newData.nextNumber++;
-  newData.totalServed++;
+  newData.currentCustomer[empId] = systemData.nextNumber;
   
   systemData = newData;
   
+  console.log("📤 Saving new data:", systemData);
   await saveToFirebase();
   
+  // Animation effect
   const card = document.getElementById(`card_${empId}`);
   if (card) {
     card.style.transform = "scale(0.98)";
     setTimeout(() => { if(card) card.style.transform = ""; }, 200);
   }
-};
+}
+
+// Make function available globally
+window.requestCustomer = requestCustomer;
 
 // Regular reset (warning only)
 document.getElementById("resetBtn").addEventListener("click", async () => {
@@ -400,6 +404,8 @@ document.getElementById("passwordResetBtn").addEventListener("click", () => {
 
 // Render UI
 function render() {
+  console.log("🎨 Rendering UI...");
+  
   document.getElementById("totalServed").innerText = systemData.totalServed;
   document.getElementById("nextNumber").innerText = systemData.nextNumber;
   
@@ -416,8 +422,6 @@ function render() {
     let nextDisplay = "-";
     if (current) nextDisplay = current + 1;
     else nextDisplay = systemData.nextNumber;
-    
-    const canCall = true; // Always can call since no limit
     
     html += `
       <div class="employee-card ${i === currentEmployeeId ? 'active' : ''}" id="card_${i}">
@@ -448,7 +452,7 @@ function render() {
 
 // Listen to Firebase updates
 onSnapshot(doc(db, "system", "state"), (snap) => {
-  if (snap.exists() && !isUpdating) {
+  if (snap.exists()) {
     const newData = snap.data();
     if (JSON.stringify(newData) !== JSON.stringify(systemData)) {
       systemData = newData;
@@ -473,6 +477,7 @@ document.getElementById("currentBadge").innerText = EMPLOYEE_NAMES[currentEmploy
 await loadFromFirebase();
 
 console.log("✅ System ready for real-time sync!");
+console.log("👉 Click on 'Call Next Customer' button to test!");
 </script>
 
 </body>
